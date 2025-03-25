@@ -24,6 +24,12 @@ public Task() {
     this.createdAt = LocalDateTime.now();
 }
 
+// Diğer alanlar...
+private String color; // Yeni renk alanı
+
+public String getColor() { return color; }
+public void setColor(String color) { this.color = color; }
+
 public Task(String description, List<String> tags) {
     this.description = description;
     this.completed = false;

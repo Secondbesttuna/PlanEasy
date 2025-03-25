@@ -13,10 +13,12 @@ import javafx.util.Duration;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Random;
 import java.util.stream.Collectors;
 
 public class MainView extends Application {
@@ -30,6 +32,28 @@ public class MainView extends Application {
 
     // Filtre metni
     private final TextField filterTagInput = new TextField();
+
+private String determineTaskColor(Task task) {
+        if(task.getDeadline() == null) {
+            return "#CCCCCC";
+        }
+        
+        LocalDate today = LocalDate.now();
+        LocalDate deadline = task.getDeadline();
+        long daysBetween = ChronoUnit.DAYS.between(today,deadline);
+        System.out.println(today + " - " + deadline + " = " + daysBetween);
+        
+        if(daysBetween < 0) {
+            return "#FF0000"; // Geçmiş tarihler için kırmızı
+        } else if(daysBetween == 0) {
+            return "#FF0000"; // Bugün için kırmızı
+        } else if(daysBetween <= 7) {
+            return "#FFFF00"; // 1 hafta içinde sarı
+        } else {
+            return "#00FF00"; // 1 haftadan fazla yeşil
+        }
+    }
+
 
     @Override
     public void start(Stage primaryStage) {
@@ -272,15 +296,31 @@ public class MainView extends Application {
             @Override
             protected void updateItem(Task task, boolean empty) {
                 super.updateItem(task, empty);
-                if (empty || task == null) {
+                if(empty || task == null) {
                     setText(null);
+                    setStyle("");
                 } else {
-                    String deadlineStr = task.getDeadline() != null ? task.getDeadline().toString() : "N/A";
-                    setText(task.getDescription() + " - " + task.getCreatedAt()
-                            + " | Deadline: " + deadlineStr + " | Tags: " + task.getTags());
+                    String deadlineStr = task.getDeadline() != null ? 
+                        task.getDeadline().toString() : "Belirtilmemiş";
+                    setText(task.getDescription() + " - Deadline: " + deadlineStr);
+                    
+                    String color = determineTaskColor(task);
+                    setStyle("-fx-background-color: " + color + ";" +
+                             "-fx-border-color: derive(" + color + ", -30%);" +
+                             "-fx-text-fill: " + getContrastColor(color) + ";" +
+                             "-fx-padding: 10;");
                 }
             }
         });
+    
+    }
+    private String getContrastColor(String hexColor) {
+        hexColor = hexColor.replace("#", "");
+        int r = Integer.parseInt(hexColor.substring(0, 2), 16);
+        int g = Integer.parseInt(hexColor.substring(2, 4), 16);
+        int b = Integer.parseInt(hexColor.substring(4, 6), 16);
+        double luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+        return luminance > 0.5 ? "black" : "white";
     }
 
     // Bir görevi veritabanından siler
