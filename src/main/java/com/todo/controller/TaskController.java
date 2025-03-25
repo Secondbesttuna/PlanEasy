@@ -6,6 +6,7 @@ import com.todo.service.TaskService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.ByteArrayResource;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -67,6 +68,16 @@ public class TaskController {
             return taskService.saveTask(task);
         }
         throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found");
+    }
+
+    @PutMapping("/{id}/updateFull")
+    public Task updateTaskFull(
+        @PathVariable Long id,
+        @RequestParam String description,
+        @RequestParam List<String> tags, // Virgülle ayrılmış string'i otomatik List'e çevirir
+        @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate deadline) { // Tarih formatını belirt
+
+        return taskService.updateTaskFull(id, description, tags, deadline);
     }
 
     @DeleteMapping("/{id}")

@@ -3,7 +3,11 @@ package com.todo.service;
 import com.todo.model.Task;
 import com.todo.repository.TaskRepository;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestTemplate;
+import org.springframework.web.util.UriComponentsBuilder;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +37,14 @@ public class TaskService {
             return taskRepository.save(task);
         }
         return null;
+    }
+
+    public Task updateTaskFull(Long id, String description, List<String> tags, LocalDate deadline) {
+        Task task = taskRepository.findById(id).orElseThrow(() -> new RuntimeException("Task bulunamadı!"));
+        task.setDescription(description);
+        task.setTags(tags);
+        task.setDeadline(deadline);
+        return taskRepository.save(task); // Direkt veritabanını günceller
     }
 
     public void markTaskAsCompleted(Long taskId) {
