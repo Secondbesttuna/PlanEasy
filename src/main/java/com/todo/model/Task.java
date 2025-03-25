@@ -46,6 +46,10 @@ public Task(String description, List<String> tags, LocalDate deadline) {
     this.deadline = deadline;
 }
 
+public boolean equals(Task task) {
+    return this.id.equals(task.getId());
+}
+
 public Long getId() { return id; }
 public String getDescription() { return description; }
 public boolean isCompleted() { return completed; }

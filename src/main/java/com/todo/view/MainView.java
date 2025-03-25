@@ -32,16 +32,17 @@ public class MainView extends Application {
 
     // Filtre metni
     private final TextField filterTagInput = new TextField();
+    private Task selectedTaskBeforeRefresh;
 
 private String determineTaskColor(Task task) {
         if(task.getDeadline() == null) {
             return "#CCCCCC";
         }
+
         
         LocalDate today = LocalDate.now();
         LocalDate deadline = task.getDeadline();
         long daysBetween = ChronoUnit.DAYS.between(today,deadline);
-        System.out.println(today + " - " + deadline + " = " + daysBetween);
         
         if(daysBetween < 0) {
             return "#FF0000"; // Geçmiş tarihler için kırmızı
@@ -136,6 +137,8 @@ private String determineTaskColor(Task task) {
      * Filtre ve sıralama durumunu göz önünde bulundurarak listeyi yenileyen metod.
      */
     public void refles() {
+        selectedTaskBeforeRefresh = taskList.getSelectionModel().getSelectedItem();
+
         String filterTag = filterTagInput.getText();
         if (!filterTag.isEmpty()) {
             // Filtre uygulanacak
@@ -162,6 +165,16 @@ private String determineTaskColor(Task task) {
             sortTasksByCreatedAt(taskList);
         } else {
             sortTasksByDeadline(taskList);
+        }
+
+        if (selectedTaskBeforeRefresh != null) {
+            taskList.getItems().stream()
+                .filter(task -> task.getId().equals(selectedTaskBeforeRefresh.getId()))
+                .findFirst()
+                .ifPresent(task -> {
+                    taskList.getSelectionModel().select(task);
+                    taskList.scrollTo(task);
+                });
         }
     }
 
@@ -309,6 +322,9 @@ private String determineTaskColor(Task task) {
                              "-fx-border-color: derive(" + color + ", -30%);" +
                              "-fx-text-fill: " + getContrastColor(color) + ";" +
                              "-fx-padding: 10;");
+                    if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)) {
+                                taskList.getSelectionModel().select(task);
+                    }
                 }
             }
         });
@@ -325,6 +341,9 @@ private String determineTaskColor(Task task) {
 
     // Bir görevi veritabanından siler
     private void deleteTask(Task task) {
+        if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)){
+            selectedTaskBeforeRefresh = null;
+        }
         RestTemplate restTemplate = new RestTemplate();
         restTemplate.delete(API_URL + "/" + task.getId());
     }
