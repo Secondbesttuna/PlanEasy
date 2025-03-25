@@ -29,17 +29,10 @@ public class MainView extends Application {
         // Görev listesini gösterecek ListView
         ListView<Task> taskList = new ListView<>();
 
-        // Güncelleme alanları (description ve tag güncelleme)
-        TextField taskInput = new TextField();
-        taskInput.setPromptText("Güncellenecek görev açıklaması");
-        TextField tagInput = new TextField();
-        tagInput.setPromptText("Güncellenecek etiket(ler)");
-
-        // Butonlar
+        // İşlem butonları
         Button addButton = new Button("Add Task");
-        Button deleteButton = new Button("Delete Task");
         Button updateButton = new Button("Update Task");
-        Button addTagButton = new Button("Update Tags");
+        Button deleteButton = new Button("Delete Task");
 
         // Sıralama butonları
         Button sortByDeadlineButton = new Button("Sort By Deadline");
@@ -48,7 +41,7 @@ public class MainView extends Application {
         Button sortByCreatedAtButton = new Button("Sort By Created At");
         sortByCreatedAtButton.setOnAction(e -> sortTasksByCreatedAt(taskList));
 
-        // Filtreleme butonlarının aksiyonu
+        // Filtreleme aksiyonları
         filterButton.setOnAction(e -> {
             String filterTag = filterTagInput.getText();
             if (!filterTag.isEmpty()) {
@@ -58,7 +51,6 @@ public class MainView extends Application {
                     List<Task> filteredTasks = Arrays.stream(tasks)
                             .filter(task -> task.getTags() != null && task.getTags().contains(filterTag))
                             .collect(Collectors.toList());
-                    // Filtrelenen görevleri de deadline’a göre sıralıyoruz
                     filteredTasks.sort(Comparator.comparing(
                             Task::getDeadline,
                             Comparator.nullsLast(Comparator.naturalOrder())
@@ -73,8 +65,16 @@ public class MainView extends Application {
             filterTagInput.clear();
         });
 
-        // "Add Task" butonuna basıldığında ayrı pencere açılıyor
+        // "Add Task" butonu ayrı pencere açar
         addButton.setOnAction(e -> openAddTaskWindow(taskList));
+
+        // "Update Task" butonu da ayrı pencere açarak seçili görevin tüm alanlarını düzenlemeye olanak tanır
+        updateButton.setOnAction(e -> {
+            Task selectedTask = taskList.getSelectionModel().getSelectedItem();
+            if (selectedTask != null) {
+                openUpdateTaskWindow(selectedTask, taskList);
+            }
+        });
 
         deleteButton.setOnAction(e -> {
             Task selectedTask = taskList.getSelectionModel().getSelectedItem();
@@ -84,41 +84,18 @@ public class MainView extends Application {
             }
         });
 
-        updateButton.setOnAction(e -> {
-            Task selectedTask = taskList.getSelectionModel().getSelectedItem();
-            String newDescription = taskInput.getText();
-            if (selectedTask != null && !newDescription.isEmpty()) {
-                updateTask(selectedTask, newDescription);
-                fetchTasks(taskList);
-                taskInput.clear();
-            }
-        });
-
-        addTagButton.setOnAction(e -> {
-            Task selectedTask = taskList.getSelectionModel().getSelectedItem();
-            String newTags = tagInput.getText();
-            if (selectedTask != null && !newTags.isEmpty()) {
-                updateTags(selectedTask, newTags);
-                fetchTasks(taskList);
-                tagInput.clear();
-            }
-        });
-
-        // Layout düzenlemesi
         VBox layout = new VBox(10,
                 filterTagInput, filterButton, clearFilterButton,
                 sortByDeadlineButton, sortByCreatedAtButton,
-                taskList, addButton, taskInput, tagInput,
-                updateButton, addTagButton, deleteButton);
+                taskList, addButton, updateButton, deleteButton);
         primaryStage.setScene(new Scene(layout, 400, 600));
         primaryStage.setTitle("To-Do List with Tags");
         primaryStage.show();
 
-        // İlk başta görevleri çekip sıralı olarak göster
         fetchTasks(taskList);
     }
 
-    // Yeni görev ekleme penceresi (deadline alanları ekli)
+    // "Add Task" için ayrı pencere (deadline, etiket vs. ekli hali)
     private void openAddTaskWindow(ListView<Task> taskList) {
         Stage addStage = new Stage();
         addStage.setTitle("Add New Task");
@@ -164,20 +141,80 @@ public class MainView extends Application {
         addStage.show();
     }
 
-    // Deadline parametresiyle görev ekleme metodu
+    // "Update Task" için ayrı pencere (güncelleme formu: açıklama, etiket, deadline)
+    private void openUpdateTaskWindow(Task task, ListView<Task> taskList) {
+        Stage updateStage = new Stage();
+        updateStage.setTitle("Update Task");
+
+        // Seçili görevin verileriyle ön doldurma
+        TextField updateTaskInput = new TextField(task.getDescription());
+        updateTaskInput.setPromptText("Görev Açıklaması");
+
+        String tagsStr = (task.getTags() != null) ? String.join(",", task.getTags()) : "";
+        TextField updateTagInput = new TextField(tagsStr);
+        updateTagInput.setPromptText("Etiket(ler)");
+
+        // Deadline alanları
+        TextField updateMonthInput = new TextField();
+        TextField updateDayInput = new TextField();
+        TextField updateYearInput = new TextField();
+        if (task.getDeadline() != null) {
+            updateMonthInput.setText(String.format("%02d", task.getDeadline().getMonthValue()));
+            updateDayInput.setText(String.format("%02d", task.getDeadline().getDayOfMonth()));
+            updateYearInput.setText(String.valueOf(task.getDeadline().getYear()));
+        }
+        updateMonthInput.setPromptText("Ay (MM)");
+        updateDayInput.setPromptText("Gün (DD)");
+        updateYearInput.setPromptText("Yıl (YYYY)");
+
+        Button saveUpdateButton = new Button("Güncelle");
+        saveUpdateButton.setOnAction(e -> {
+            String newDescription = updateTaskInput.getText();
+            String newTags = updateTagInput.getText();
+            try {
+                int month = Integer.parseInt(updateMonthInput.getText());
+                int day = Integer.parseInt(updateDayInput.getText());
+                int year = Integer.parseInt(updateYearInput.getText());
+                LocalDate newDeadline = LocalDate.of(year, month, day);
+                updateTaskFull(task, newDescription, newTags, newDeadline);
+                fetchTasks(taskList);
+                updateStage.close();
+            } catch (NumberFormatException ex) {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Lütfen geçerli bir tarih girin (sayı formatında).");
+                alert.showAndWait();
+            } catch (Exception ex) {
+                Alert alert = new Alert(Alert.AlertType.ERROR, "Geçerli bir tarih girin.");
+                alert.showAndWait();
+            }
+        });
+
+        VBox updateLayout = new VBox(10, updateTaskInput, updateTagInput, updateMonthInput, updateDayInput, updateYearInput, saveUpdateButton);
+        updateStage.setScene(new Scene(updateLayout, 300, 250));
+        updateStage.show();
+    }
+
+    // Görevi full update yapan metod (description, tags, deadline)
+    private void updateTaskFull(Task task, String description, String tags, LocalDate deadline) {
+        RestTemplate restTemplate = new RestTemplate();
+        // Backend'de /updateFull endpoint'ini desteklediğinizi varsayıyoruz.
+        String url = API_URL + "/" + task.getId() + "/updateFull?description=" + description 
+                + "&tags=" + tags + "&deadline=" + deadline.toString();
+        restTemplate.put(url, null);
+    }
+
+    // Yeni görev ekleme metodunda deadline parametresi
     private void addTask(String description, String tags, LocalDate deadline) {
         RestTemplate restTemplate = new RestTemplate();
         String url = API_URL + "?description=" + description + "&tags=" + tags + "&deadline=" + deadline.toString();
         restTemplate.postForObject(url, null, Task.class);
     }
 
-    // Görevleri çekip deadline’a göre sıralayarak ListView'e ekleyen metot
+    // Backend'den görevleri çekip deadline'a göre sıralayarak ListView'e ekleyen metod
     private void fetchTasks(ListView<Task> taskList) {
         RestTemplate restTemplate = new RestTemplate();
         Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
         if (tasks != null) {
             List<Task> taskListData = Arrays.asList(tasks);
-            // Deadline'a göre sıralama (null deadline'ları sona koyuyoruz)
             taskListData.sort(Comparator.comparing(
                     Task::getDeadline,
                     Comparator.nullsLast(Comparator.naturalOrder())
@@ -205,17 +242,7 @@ public class MainView extends Application {
         restTemplate.delete(API_URL + "/" + task.getId());
     }
 
-    private void updateTask(Task task, String newDescription) {
-        RestTemplate restTemplate = new RestTemplate();
-        restTemplate.put(API_URL + "/" + task.getId() + "?description=" + newDescription, null);
-    }
-
-    private void updateTags(Task task, String newTags) {
-        RestTemplate restTemplate = new RestTemplate();
-        restTemplate.put(API_URL + "/" + task.getId() + "/tags?tags=" + newTags, null);
-    }
-    
-    // Frontend'de mevcut görev listesini deadline'a göre sıralayan metot
+    // Frontend sıralama: deadline'a göre
     private void sortTasksByDeadline(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
@@ -224,8 +251,8 @@ public class MainView extends Application {
         ));
         taskList.getItems().setAll(currentTasks);
     }
-    
-    // Yeni: Görevlerin eklenme tarihine (createdAt) göre sıralama yapan metot
+
+    // Frontend sıralama: eklenme tarihine (createdAt) göre
     private void sortTasksByCreatedAt(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
