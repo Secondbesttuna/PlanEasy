@@ -1,18 +1,15 @@
 package com.todo.view;
 
 import com.todo.model.Task;
-
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
+import javafx.scene.layout.HBox;
 import javafx.scene.layout.VBox;
-
-import javafx.animation.KeyFrame;
-import javafx.animation.Timeline;
-import javafx.util.Duration;
 import javafx.stage.Stage;
+import javafx.util.Duration;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
@@ -25,61 +22,46 @@ import java.util.stream.Collectors;
 public class MainView extends Application {
     private static final String API_URL = "http://localhost:8080/tasks";
 
-    ListView<Task> taskList = new ListView<>();
-    
+    // Görevleri görüntülemek için
+    private final ListView<Task> taskList = new ListView<>();
+
+    // Sıralama durumu (false => Deadline, true => CreatedAt)
+    private boolean sorting = false;
+
+    // Filtre metni
+    private final TextField filterTagInput = new TextField();
 
     @Override
     public void start(Stage primaryStage) {
-        // Filtreleme kontrolleri
-        TextField filterTagInput = new TextField();
+        // Filtre giriş kutusu
         filterTagInput.setPromptText("Filtrelemek için etiket girin");
-        Button filterButton = new Button("Filter Tasks");
-        Button clearFilterButton = new Button("Clear Filter");
 
-        // Görev listesini gösterecek ListView
+        // Toggle benzeri bir switch için CheckBox kullanıyoruz
+        CheckBox toggleCheckBox = new CheckBox();
+        Label lblDeadline = new Label("Deadline");
+        Label lblCreatedAt = new Label("Created At");
+
+        // Başlangıçta Deadline sıralaması olsun
+        toggleCheckBox.setSelected(false);
+
+        // Toggle davranışı: seçiliyse CreatedAt, seçili değilse Deadline
+        toggleCheckBox.setOnAction(e -> {
+            sorting = toggleCheckBox.isSelected();
+            refles();
+        });
+
+        // Bu HBox'ta solda "Deadline" yazısı, ortada checkbox, sağda "Created At" yazısı var
+        HBox toggleContainer = new HBox(10, lblDeadline, toggleCheckBox, lblCreatedAt);
 
         // İşlem butonları
         Button addButton = new Button("Add Task");
         Button updateButton = new Button("Update Task");
         Button deleteButton = new Button("Delete Task");
 
-        // Sıralama butonları
-        Button sortByDeadlineButton = new Button("Sort By Deadline");
-        sortByDeadlineButton.setOnAction(e -> sortTasksByDeadline(taskList));
-
-        Button sortByCreatedAtButton = new Button("Sort By Created At");
-        sortByCreatedAtButton.setOnAction(e -> sortTasksByCreatedAt(taskList));
-
-        // Filtreleme aksiyonları
-        filterButton.setOnAction(e -> {
-            String filterTag = filterTagInput.getText();
-            if (!filterTag.isEmpty()) {
-                RestTemplate restTemplate = new RestTemplate();
-                Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
-                if (tasks != null) {
-                    List<Task> filteredTasks = Arrays.stream(tasks)
-                            .filter(task -> task.getTags() != null && task.getTags().contains(filterTag))
-                            .collect(Collectors.toList());
-                    filteredTasks.sort(Comparator.comparing(
-                            Task::getDeadline,
-                            Comparator.nullsLast(Comparator.naturalOrder())
-                    ));
-                    taskList.getItems().setAll(filteredTasks);
-                }
-            }
-        });
-
-        
-
-        clearFilterButton.setOnAction(e -> {
-            fetchTasks(taskList);
-            filterTagInput.clear();
-        });
-
-        // "Add Task" butonu ayrı pencere açar
+        // Add Task: ayrı pencerede yeni görev ekleme
         addButton.setOnAction(e -> openAddTaskWindow(taskList));
 
-        // "Update Task" butonu da ayrı pencere açarak seçili görevin tüm alanlarını düzenlemeye olanak tanır
+        // Update Task: ayrı pencerede seçili görevi düzenleme
         updateButton.setOnAction(e -> {
             Task selectedTask = taskList.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
@@ -87,6 +69,7 @@ public class MainView extends Application {
             }
         });
 
+        // Delete Task: seçili görevi sil
         deleteButton.setOnAction(e -> {
             Task selectedTask = taskList.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
@@ -95,29 +78,67 @@ public class MainView extends Application {
             }
         });
 
+        // Ana layout
         VBox layout = new VBox(10,
-                filterTagInput, filterButton, clearFilterButton,
-                sortByDeadlineButton, sortByCreatedAtButton,
-                taskList, addButton, updateButton, deleteButton);
+                filterTagInput,
+                toggleContainer,        // <-- Deadline/CreatedAt Toggle
+                taskList,
+                addButton, updateButton, deleteButton
+        );
         primaryStage.setScene(new Scene(layout, 400, 600));
         primaryStage.setTitle("To-Do List with Tags");
         primaryStage.show();
 
+        // Başlangıçta görevleri çek
         fetchTasks(taskList);
+
+        // Otomatik yenileme (1 saniyede bir)
         startTimer();
     }
 
-
+    /**
+     * 1 saniyede bir çalışan Timer fonksiyonu.
+     * Filtre ve sıralama durumuna göre listeyi yeniler.
+     */
     public void startTimer() {
-        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(3), event -> {
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
             refles();
         }));
         timeline.setCycleCount(Timeline.INDEFINITE);
         timeline.play();
     }
 
+    /**
+     * Filtre ve sıralama durumunu göz önünde bulundurarak listeyi yenileyen metod.
+     */
     public void refles() {
-        fetchTasks(taskList);
+        String filterTag = filterTagInput.getText();
+        if (!filterTag.isEmpty()) {
+            // Filtre uygulanacak
+            RestTemplate restTemplate = new RestTemplate();
+            Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
+            if (tasks != null) {
+                List<Task> filteredTasks = Arrays.stream(tasks)
+                        .filter(task -> task.getTags() != null && task.getTags().contains(filterTag))
+                        .collect(Collectors.toList());
+                // Deadline'a göre bir ilk sıralama (isterseniz direk sorting parametresine göre de ayarlayabilirsiniz)
+                filteredTasks.sort(Comparator.comparing(
+                        Task::getDeadline,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                ));
+                taskList.getItems().setAll(filteredTasks);
+            }
+        } else {
+            // Filtre yoksa tüm görevleri çek
+            fetchTasks(taskList);
+        }
+
+        // Sıralama durumu (sorting = true => createdAt, false => deadline)
+        if (sorting) {
+            sortTasksByCreatedAt(taskList);
+        } else {
+            sortTasksByDeadline(taskList);
+        }
     }
 
     // "Add Task" için ayrı pencere (deadline, etiket vs. ekli hali)
@@ -221,32 +242,32 @@ public class MainView extends Application {
     // Görevi full update yapan metod (description, tags, deadline)
     private void updateTaskFull(Task task, String description, String tags, LocalDate deadline) {
         RestTemplate restTemplate = new RestTemplate();
-        // Backend'de /updateFull endpoint'ini desteklediğinizi varsayıyoruz.
-        String url = API_URL + "/" + task.getId() + "/updateFull?description=" + description 
+        String url = API_URL + "/" + task.getId() + "/updateFull?description=" + description
                 + "&tags=" + tags + "&deadline=" + deadline.toString();
         restTemplate.put(url, null);
     }
 
-    // Yeni görev ekleme metodunda deadline parametresi
+    // Yeni görev ekleme metodu (deadline parametresiyle)
     private void addTask(String description, String tags, LocalDate deadline) {
         RestTemplate restTemplate = new RestTemplate();
         String url = API_URL + "?description=" + description + "&tags=" + tags + "&deadline=" + deadline.toString();
         restTemplate.postForObject(url, null, Task.class);
     }
 
-    // Backend'den görevleri çekip deadline'a göre sıralayarak ListView'e ekleyen metod
+    // Backend'den görevleri çekip ListView'e ekleyen metod (varsayılan: Deadline'a göre sıralıyor)
     private void fetchTasks(ListView<Task> taskList) {
         RestTemplate restTemplate = new RestTemplate();
         Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
         if (tasks != null) {
             List<Task> taskListData = Arrays.asList(tasks);
+            // Deadline'a göre sıralama (null'ları sona koyuyoruz)
             taskListData.sort(Comparator.comparing(
                     Task::getDeadline,
                     Comparator.nullsLast(Comparator.naturalOrder())
             ));
             taskList.getItems().setAll(taskListData);
         }
-        
+
         taskList.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Task task, boolean empty) {
@@ -262,12 +283,13 @@ public class MainView extends Application {
         });
     }
 
+    // Bir görevi veritabanından siler
     private void deleteTask(Task task) {
         RestTemplate restTemplate = new RestTemplate();
         restTemplate.delete(API_URL + "/" + task.getId());
     }
 
-    // Frontend sıralama: deadline'a göre
+    // Frontend sıralama: Deadline'a göre
     private void sortTasksByDeadline(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
@@ -277,7 +299,7 @@ public class MainView extends Application {
         taskList.getItems().setAll(currentTasks);
     }
 
-    // Frontend sıralama: eklenme tarihine (createdAt) göre
+    // Frontend sıralama: Eklenme tarihine (createdAt) göre
     private void sortTasksByCreatedAt(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
