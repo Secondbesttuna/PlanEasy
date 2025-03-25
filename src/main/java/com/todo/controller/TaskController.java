@@ -36,6 +36,12 @@ public class TaskController {
         this.taskService = taskService;
     }
 
+    @PutMapping("/{id}/complete")
+    public ResponseEntity<Void> markTaskAsCompleted(@PathVariable Long id) {
+        taskService.markTaskAsCompleted(id);
+        return ResponseEntity.ok().build();
+    }
+
     @GetMapping
     public List<Task> getTasks() {
         logger.info("GET /tasks called");

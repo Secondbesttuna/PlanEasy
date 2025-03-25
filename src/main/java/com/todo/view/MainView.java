@@ -32,9 +32,10 @@ public class MainView extends Application {
     // Filtre metni
     private final TextField filterTagInput = new TextField();
     private Task selectedTaskBeforeRefresh;
+    CheckBox showCompletedToggle = new CheckBox("Tamamlananları Göster");
 
     private String determineTaskColor(Task task) {
-        if(task.getDeadline() == null) {
+        if(task.getDeadline() == null || task.isCompleted()) {
             return "#CCCCCC";
         }
 
@@ -73,6 +74,10 @@ public class MainView extends Application {
             refles();
         });
 
+        showCompletedToggle.setOnAction(e -> refles());
+
+
+
         // Bu HBox'ta solda "Deadline" yazısı, ortada checkbox, sağda "Created At" yazısı var
         HBox toggleContainer = new HBox(10, lblDeadline, toggleCheckBox, lblCreatedAt);
 
@@ -80,6 +85,7 @@ public class MainView extends Application {
         Button addButton = new Button("Add Task");
         Button updateButton = new Button("Update Task");
         Button deleteButton = new Button("Delete Task");
+        Button markButton = new Button("Complete Task");
 
         // Add Task: ayrı pencerede yeni görev ekleme
         addButton.setOnAction(e -> openAddTaskWindow(taskList));
@@ -97,23 +103,33 @@ public class MainView extends Application {
             Task selectedTask = taskList.getSelectionModel().getSelectedItem();
             if (selectedTask != null) {
                 deleteTask(selectedTask);
-                fetchTasks(taskList);
+                refles();
+            }
+        });
+
+        markButton.setOnAction(e -> {
+            Task selectedTask = taskList.getSelectionModel().getSelectedItem();
+            if (selectedTask != null) {
+                markTaskAsCompleted(selectedTask);
+                refles();
             }
         });
 
         // Ana layout
+        // Butonları layout'a ekle
         VBox layout = new VBox(10,
             filterTagInput,
-            toggleContainer,        // <-- Deadline/CreatedAt Toggle
+            toggleContainer,
+            showCompletedToggle, // Yeni toggle
             taskList,
-            addButton, updateButton, deleteButton
+            addButton, updateButton, deleteButton, markButton
         );
         primaryStage.setScene(new Scene(layout, 400, 600));
         primaryStage.setTitle("To-Do List with Tags");
         primaryStage.show();
 
         // Başlangıçta görevleri çek
-        fetchTasks(taskList);
+        refles();
 
         // Otomatik yenileme (1 saniyede bir)
         startTimer();
@@ -138,24 +154,30 @@ public class MainView extends Application {
         selectedTaskBeforeRefresh = taskList.getSelectionModel().getSelectedItem();
 
         String filterTag = filterTagInput.getText();
-        if (!filterTag.isEmpty()) {
-            // Filtre uygulanacak
-            RestTemplate restTemplate = new RestTemplate();
-            Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
-            if (tasks != null) {
-                List<Task> filteredTasks = Arrays.stream(tasks)
-                    .filter(task -> task.getTags() != null && task.getTags().contains(filterTag))
-                    .collect(Collectors.toList());
-                // Deadline'a göre bir ilk sıralama (isterseniz direk sorting parametresine göre de ayarlayabilirsiniz)
-                filteredTasks.sort(Comparator.comparing(
-                    Task::getDeadline,
-                    Comparator.nullsLast(Comparator.naturalOrder())
-                ));
-                taskList.getItems().setAll(filteredTasks);
+        
+        RestTemplate restTemplate = new RestTemplate();
+        Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
+        if (tasks.length != 0) {
+            List<Task> coplate_filteredTasks = Arrays.stream(tasks)
+                        .filter(task -> showCompletedToggle.isSelected() == task.isCompleted())
+                        .collect(Collectors.toList());
+    
+            if (!filterTag.isEmpty()) {
+                // Filtre uygulanacak
+                if (coplate_filteredTasks != null) {
+                    List<Task> filteredTasks = coplate_filteredTasks.stream()
+                        .filter(task -> task.getTags() != null && task.getTags().contains(filterTag) && (showCompletedToggle.isSelected() == task.isCompleted()))
+                        .collect(Collectors.toList());
+                    // Deadline'a göre bir ilk sıralama (isterseniz direk sorting parametresine göre de ayarlayabilirsiniz)
+                    filteredTasks.sort(Comparator.comparing(
+                        Task::getDeadline,
+                        Comparator.nullsLast(Comparator.naturalOrder())
+                    ));
+                    taskList.getItems().setAll(filteredTasks);
+                }
+            } else {
+                taskList.getItems().setAll(coplate_filteredTasks);
             }
-        } else {
-        // Filtre yoksa tüm görevleri çek
-        fetchTasks(taskList);
         }
 
         // Sıralama durumu (sorting = true => createdAt, false => deadline)
@@ -174,6 +196,30 @@ public class MainView extends Application {
                     taskList.scrollTo(task);
                 });
         }
+
+        taskList.setCellFactory(param -> new ListCell<>() {
+            @Override
+            protected void updateItem(Task task, boolean empty) {
+                super.updateItem(task, empty);
+                if(empty || task == null) {
+                    setText(null);
+                    setStyle("");
+                } else {
+                    String deadlineStr = task.getDeadline() != null ? 
+                        task.getDeadline().toString() : "Belirtilmemiş";
+                        setText(task.getDescription() + " - Deadline: " + deadlineStr);
+
+                    String color = determineTaskColor(task);
+                        setStyle("-fx-background-color: " + color + ";" +
+                        "-fx-border-color: derive(" + color + ", -30%);" +
+                        "-fx-text-fill: " + getContrastColor(color) + ";" +
+                        "-fx-padding: 10;");
+                    if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)) {
+                        taskList.getSelectionModel().select(task);
+                    }
+                }
+            }
+        });
     }
 
     // "Add Task" için ayrı pencere (deadline, etiket vs. ekli hali)
@@ -205,7 +251,7 @@ public class MainView extends Application {
                 LocalDate deadline = LocalDate.of(year, month, day);
                 if (!description.isEmpty()) {
                     addTask(description, tags, deadline);
-                    fetchTasks(taskList);
+                    refles();
                     addStage.close();
                 }
             } catch (NumberFormatException ex) {
@@ -258,13 +304,10 @@ public class MainView extends Application {
                 int year = Integer.parseInt(updateYearInput.getText());
                 LocalDate newDeadline = LocalDate.of(year, month, day);
                 updateTaskFull(task, newDescription, newTags, newDeadline);
-                fetchTasks(taskList);
+                refles();
                 updateStage.close();
             } catch (NumberFormatException ex) {
                 Alert alert = new Alert(Alert.AlertType.ERROR, "Lütfen geçerli bir tarih girin (sayı formatında).");
-                alert.showAndWait();
-            } catch (Exception ex) {
-                Alert alert = new Alert(Alert.AlertType.ERROR, "Geçerli bir tarih girin.");
                 alert.showAndWait();
             }
         });
@@ -288,45 +331,7 @@ public class MainView extends Application {
         restTemplate.postForObject(url, null, Task.class);
     }
 
-    // Backend'den görevleri çekip ListView'e ekleyen metod (varsayılan: Deadline'a göre sıralıyor)
-    private void fetchTasks(ListView<Task> taskList) {
-        RestTemplate restTemplate = new RestTemplate();
-        Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
-        if (tasks != null) {
-            List<Task> taskListData = Arrays.asList(tasks);
-            // Deadline'a göre sıralama (null'ları sona koyuyoruz)
-            taskListData.sort(Comparator.comparing(
-                Task::getDeadline,
-                Comparator.nullsLast(Comparator.naturalOrder())
-            ));
-            taskList.getItems().setAll(taskListData);
-        }
-
-        taskList.setCellFactory(param -> new ListCell<>() {
-            @Override
-            protected void updateItem(Task task, boolean empty) {
-                super.updateItem(task, empty);
-                if(empty || task == null) {
-                    setText(null);
-                    setStyle("");
-                } else {
-                    String deadlineStr = task.getDeadline() != null ? 
-                        task.getDeadline().toString() : "Belirtilmemiş";
-                        setText(task.getDescription() + " - Deadline: " + deadlineStr);
-
-                    String color = determineTaskColor(task);
-                        setStyle("-fx-background-color: " + color + ";" +
-                        "-fx-border-color: derive(" + color + ", -30%);" +
-                        "-fx-text-fill: " + getContrastColor(color) + ";" +
-                        "-fx-padding: 10;");
-                    if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)) {
-                        taskList.getSelectionModel().select(task);
-                    }
-                }
-            }
-        });
-
-    }
+    
 
     private String getContrastColor(String hexColor) {
         hexColor = hexColor.replace("#", "");
@@ -345,6 +350,13 @@ public class MainView extends Application {
         RestTemplate restTemplate = new RestTemplate();
         restTemplate.delete(API_URL + "/" + task.getId());
     }
+
+    private void markTaskAsCompleted(Task task) {
+        RestTemplate restTemplate = new RestTemplate();
+        String url = API_URL + "/" + task.getId() + "/complete";
+        restTemplate.put(url, null);
+    }
+    
 
     // Frontend sıralama: Deadline'a göre
     private void sortTasksByDeadline(ListView<Task> taskList) {
