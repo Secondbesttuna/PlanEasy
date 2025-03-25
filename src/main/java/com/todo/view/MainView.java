@@ -1,10 +1,17 @@
 package com.todo.view;
 
 import com.todo.model.Task;
+
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
 import javafx.application.Application;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.VBox;
+
+import javafx.animation.KeyFrame;
+import javafx.animation.Timeline;
+import javafx.util.Duration;
 import javafx.stage.Stage;
 import org.springframework.web.client.RestTemplate;
 
@@ -18,6 +25,9 @@ import java.util.stream.Collectors;
 public class MainView extends Application {
     private static final String API_URL = "http://localhost:8080/tasks";
 
+    ListView<Task> taskList = new ListView<>();
+    
+
     @Override
     public void start(Stage primaryStage) {
         // Filtreleme kontrolleri
@@ -27,7 +37,6 @@ public class MainView extends Application {
         Button clearFilterButton = new Button("Clear Filter");
 
         // Görev listesini gösterecek ListView
-        ListView<Task> taskList = new ListView<>();
 
         // İşlem butonları
         Button addButton = new Button("Add Task");
@@ -59,6 +68,8 @@ public class MainView extends Application {
                 }
             }
         });
+
+        
 
         clearFilterButton.setOnAction(e -> {
             fetchTasks(taskList);
@@ -92,6 +103,20 @@ public class MainView extends Application {
         primaryStage.setTitle("To-Do List with Tags");
         primaryStage.show();
 
+        fetchTasks(taskList);
+        startTimer();
+    }
+
+
+    public void startTimer() {
+        Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(3), event -> {
+            refles();
+        }));
+        timeline.setCycleCount(Timeline.INDEFINITE);
+        timeline.play();
+    }
+
+    public void refles() {
         fetchTasks(taskList);
     }
 

@@ -8,6 +8,9 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.http.ResponseEntity;
+
+
 @Service
 public class TaskService {
     private final TaskRepository taskRepository;
@@ -52,6 +55,10 @@ public Task getTaskById(Long id) {
 
 public Task saveTask(Task task) {
     return taskRepository.save(task);
+}
+
+public void deleteAllTasks() {
+    taskRepository.deleteAll();
 }
 
 //public List<Task> getTasksByTag(String tag) {
