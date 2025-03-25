@@ -18,7 +18,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Random;
 import java.util.stream.Collectors;
 
 public class MainView extends Application {
@@ -34,27 +33,26 @@ public class MainView extends Application {
     private final TextField filterTagInput = new TextField();
     private Task selectedTaskBeforeRefresh;
 
-private String determineTaskColor(Task task) {
+    private String determineTaskColor(Task task) {
         if(task.getDeadline() == null) {
             return "#CCCCCC";
         }
 
-        
+
         LocalDate today = LocalDate.now();
         LocalDate deadline = task.getDeadline();
         long daysBetween = ChronoUnit.DAYS.between(today,deadline);
-        
+
         if(daysBetween < 0) {
-            return "#FF0000"; // Geçmiş tarihler için kırmızı
+        return "#FF0000"; // Geçmiş tarihler için kırmızı
         } else if(daysBetween == 0) {
-            return "#FF0000"; // Bugün için kırmızı
+        return "#FF0000"; // Bugün için kırmızı
         } else if(daysBetween <= 7) {
-            return "#FFFF00"; // 1 hafta içinde sarı
+        return "#FFFF00"; // 1 hafta içinde sarı
         } else {
-            return "#00FF00"; // 1 haftadan fazla yeşil
+        return "#00FF00"; // 1 haftadan fazla yeşil
         }
     }
-
 
     @Override
     public void start(Stage primaryStage) {
@@ -105,10 +103,10 @@ private String determineTaskColor(Task task) {
 
         // Ana layout
         VBox layout = new VBox(10,
-                filterTagInput,
-                toggleContainer,        // <-- Deadline/CreatedAt Toggle
-                taskList,
-                addButton, updateButton, deleteButton
+            filterTagInput,
+            toggleContainer,        // <-- Deadline/CreatedAt Toggle
+            taskList,
+            addButton, updateButton, deleteButton
         );
         primaryStage.setScene(new Scene(layout, 400, 600));
         primaryStage.setTitle("To-Do List with Tags");
@@ -122,9 +120,9 @@ private String determineTaskColor(Task task) {
     }
 
     /**
-     * 1 saniyede bir çalışan Timer fonksiyonu.
-     * Filtre ve sıralama durumuna göre listeyi yeniler.
-     */
+    * 1 saniyede bir çalışan Timer fonksiyonu.
+    * Filtre ve sıralama durumuna göre listeyi yeniler.
+    */
     public void startTimer() {
         Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
             refles();
@@ -134,8 +132,8 @@ private String determineTaskColor(Task task) {
     }
 
     /**
-     * Filtre ve sıralama durumunu göz önünde bulundurarak listeyi yenileyen metod.
-     */
+    * Filtre ve sıralama durumunu göz önünde bulundurarak listeyi yenileyen metod.
+    */
     public void refles() {
         selectedTaskBeforeRefresh = taskList.getSelectionModel().getSelectedItem();
 
@@ -146,18 +144,18 @@ private String determineTaskColor(Task task) {
             Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
             if (tasks != null) {
                 List<Task> filteredTasks = Arrays.stream(tasks)
-                        .filter(task -> task.getTags() != null && task.getTags().contains(filterTag))
-                        .collect(Collectors.toList());
+                    .filter(task -> task.getTags() != null && task.getTags().contains(filterTag))
+                    .collect(Collectors.toList());
                 // Deadline'a göre bir ilk sıralama (isterseniz direk sorting parametresine göre de ayarlayabilirsiniz)
                 filteredTasks.sort(Comparator.comparing(
-                        Task::getDeadline,
-                        Comparator.nullsLast(Comparator.naturalOrder())
+                    Task::getDeadline,
+                    Comparator.nullsLast(Comparator.naturalOrder())
                 ));
                 taskList.getItems().setAll(filteredTasks);
             }
         } else {
-            // Filtre yoksa tüm görevleri çek
-            fetchTasks(taskList);
+        // Filtre yoksa tüm görevleri çek
+        fetchTasks(taskList);
         }
 
         // Sıralama durumu (sorting = true => createdAt, false => deadline)
@@ -279,8 +277,7 @@ private String determineTaskColor(Task task) {
     // Görevi full update yapan metod (description, tags, deadline)
     private void updateTaskFull(Task task, String description, String tags, LocalDate deadline) {
         RestTemplate restTemplate = new RestTemplate();
-        String url = API_URL + "/" + task.getId() + "/updateFull?description=" + description
-                + "&tags=" + tags + "&deadline=" + deadline.toString();
+        String url = API_URL + "/" + task.getId() + "/updateFull?description=" + description + "&tags=" + tags + "&deadline=" + deadline.toString();
         restTemplate.put(url, null);
     }
 
@@ -299,8 +296,8 @@ private String determineTaskColor(Task task) {
             List<Task> taskListData = Arrays.asList(tasks);
             // Deadline'a göre sıralama (null'ları sona koyuyoruz)
             taskListData.sort(Comparator.comparing(
-                    Task::getDeadline,
-                    Comparator.nullsLast(Comparator.naturalOrder())
+                Task::getDeadline,
+                Comparator.nullsLast(Comparator.naturalOrder())
             ));
             taskList.getItems().setAll(taskListData);
         }
@@ -315,21 +312,22 @@ private String determineTaskColor(Task task) {
                 } else {
                     String deadlineStr = task.getDeadline() != null ? 
                         task.getDeadline().toString() : "Belirtilmemiş";
-                    setText(task.getDescription() + " - Deadline: " + deadlineStr);
-                    
+                        setText(task.getDescription() + " - Deadline: " + deadlineStr);
+
                     String color = determineTaskColor(task);
-                    setStyle("-fx-background-color: " + color + ";" +
-                             "-fx-border-color: derive(" + color + ", -30%);" +
-                             "-fx-text-fill: " + getContrastColor(color) + ";" +
-                             "-fx-padding: 10;");
+                        setStyle("-fx-background-color: " + color + ";" +
+                        "-fx-border-color: derive(" + color + ", -30%);" +
+                        "-fx-text-fill: " + getContrastColor(color) + ";" +
+                        "-fx-padding: 10;");
                     if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)) {
-                                taskList.getSelectionModel().select(task);
+                        taskList.getSelectionModel().select(task);
                     }
                 }
             }
         });
-    
+
     }
+
     private String getContrastColor(String hexColor) {
         hexColor = hexColor.replace("#", "");
         int r = Integer.parseInt(hexColor.substring(0, 2), 16);
@@ -352,8 +350,8 @@ private String determineTaskColor(Task task) {
     private void sortTasksByDeadline(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
-                Task::getDeadline,
-                Comparator.nullsLast(Comparator.naturalOrder())
+            Task::getDeadline,
+            Comparator.nullsLast(Comparator.naturalOrder())
         ));
         taskList.getItems().setAll(currentTasks);
     }
@@ -362,9 +360,10 @@ private String determineTaskColor(Task task) {
     private void sortTasksByCreatedAt(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
-                Task::getCreatedAt,
-                Comparator.nullsLast(Comparator.naturalOrder())
+            Task::getCreatedAt,
+            Comparator.nullsLast(Comparator.naturalOrder())
         ));
         taskList.getItems().setAll(currentTasks);
     }
+
 }
