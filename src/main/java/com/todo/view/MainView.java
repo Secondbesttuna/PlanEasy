@@ -4,6 +4,7 @@ import com.todo.model.Task;
 import javafx.animation.KeyFrame;
 import javafx.animation.Timeline;
 import javafx.application.Application;
+import javafx.geometry.Insets;
 import javafx.scene.Scene;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
@@ -55,14 +56,52 @@ public class MainView extends Application {
         }
     }
 
+    private boolean checkLoginInfo(TextField userNameField, PasswordField passwordField) {
+        String enteredUsername = userNameField.getText();
+        String enteredPassword = passwordField.getText();
+
+        // Predefined username and password (for demonstration)
+        String correctUsername = "admin";
+        String correctPassword = "password";
+
+        // Check if entered credentials are correct
+        if (enteredUsername.equals(correctUsername) && enteredPassword.equals(correctPassword)) {
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     private void showLogIn(Stage primaryStage) {
+        // Kullanıcı adı ve şifre alanları
+        Label userNameLabel = new Label("Username:");
+        TextField userNameField = new TextField();
+
+        Label passwordLabel = new Label("Password:");
+        PasswordField passwordField = new PasswordField();
+
         Button checkButton = new Button("Enter");
-        VBox logIn = new VBox(10, checkButton);
+
+        Label errorMessage = new Label("Please enter a valid username and password. \n \"admin\" \"password\" ");
+        errorMessage.setStyle("-fx-text-fill: red;");
+        errorMessage.setVisible(false);
+
+        VBox logIn = new VBox(10, userNameLabel, userNameField, passwordLabel, passwordField, checkButton,
+                errorMessage);
+        logIn.setPadding(new Insets(20));
+
         primaryStage.setScene(new Scene(logIn, 400, 600));
+        primaryStage.setTitle("To-Do List with Tags (Not Logged In)");
         primaryStage.show();
+
+        // Buton tıklama aksiyonu
         checkButton.setOnAction(e -> {
-            isLoggedIn = true;
-            start(primaryStage);
+            if (checkLoginInfo(userNameField, passwordField)) {
+                isLoggedIn = true;
+                start(primaryStage);
+            } else {
+                errorMessage.setVisible(true);
+            }
         });
     }
 
