@@ -235,6 +235,9 @@ public class MainView extends Application {
                 taskList.getItems().setAll(coplate_filteredTasks);
             }
         }
+        else{
+            taskList.getItems().clear();
+        }
 
         // Sıralama durumu (sorting = true => createdAt, false => deadline)
         if (sorting) {
