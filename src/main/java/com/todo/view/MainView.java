@@ -28,6 +28,7 @@ public class MainView extends Application {
 
     // Sıralama durumu (false => Deadline, true => CreatedAt)
     private boolean sorting = false;
+    private static boolean isLoggedIn = false;
 
     // Filtre metni
     private final TextField filterTagInput = new TextField();
@@ -35,110 +36,125 @@ public class MainView extends Application {
     CheckBox showCompletedToggle = new CheckBox("Tamamlananları Göster");
 
     private String determineTaskColor(Task task) {
-        if(task.getDeadline() == null || task.isCompleted()) {
+        if (task.getDeadline() == null || task.isCompleted()) {
             return "#CCCCCC";
         }
 
-
         LocalDate today = LocalDate.now();
         LocalDate deadline = task.getDeadline();
-        long daysBetween = ChronoUnit.DAYS.between(today,deadline);
+        long daysBetween = ChronoUnit.DAYS.between(today, deadline);
 
-        if(daysBetween < 0) {
-        return "#FF0000"; // Geçmiş tarihler için kırmızı
-        } else if(daysBetween == 0) {
-        return "#FF0000"; // Bugün için kırmızı
-        } else if(daysBetween <= 7) {
-        return "#FFFF00"; // 1 hafta içinde sarı
+        if (daysBetween < 0) {
+            return "#FF0000"; // Geçmiş tarihler için kırmızı
+        } else if (daysBetween == 0) {
+            return "#FF0000"; // Bugün için kırmızı
+        } else if (daysBetween <= 7) {
+            return "#FFFF00"; // 1 hafta içinde sarı
         } else {
-        return "#00FF00"; // 1 haftadan fazla yeşil
+            return "#00FF00"; // 1 haftadan fazla yeşil
         }
+    }
+
+    private void showLogIn(Stage primaryStage) {
+        Button checkButton = new Button("Enter");
+        VBox logIn = new VBox(10, checkButton);
+        primaryStage.setScene(new Scene(logIn, 400, 600));
+        primaryStage.show();
+        checkButton.setOnAction(e -> {
+            isLoggedIn = true;
+            start(primaryStage);
+        });
     }
 
     @Override
     public void start(Stage primaryStage) {
-        // Filtre giriş kutusu
-        filterTagInput.setPromptText("Filtrelemek için etiket girin");
 
-        // Toggle benzeri bir switch için CheckBox kullanıyoruz
-        CheckBox toggleCheckBox = new CheckBox();
-        Label lblDeadline = new Label("Deadline");
-        Label lblCreatedAt = new Label("Created At");
+        Stage copy = primaryStage;
+        if (!isLoggedIn) {
+            showLogIn(primaryStage);
+            startTimer();
+        } else {
+            primaryStage = copy;
+            filterTagInput.setPromptText("Filtrelemek için etiket girin");
 
-        // Başlangıçta Deadline sıralaması olsun
-        toggleCheckBox.setSelected(false);
+            // Toggle benzeri bir switch için CheckBox kullanıyoruz
+            CheckBox toggleCheckBox = new CheckBox();
+            Label lblDeadline = new Label("Deadline");
+            Label lblCreatedAt = new Label("Created At");
 
-        // Toggle davranışı: seçiliyse CreatedAt, seçili değilse Deadline
-        toggleCheckBox.setOnAction(e -> {
-            sorting = toggleCheckBox.isSelected();
+            // Başlangıçta Deadline sıralaması olsun
+            toggleCheckBox.setSelected(false);
+
+            // Toggle davranışı: seçiliyse CreatedAt, seçili değilse Deadline
+            toggleCheckBox.setOnAction(e -> {
+                sorting = toggleCheckBox.isSelected();
+                refles();
+            });
+
+            showCompletedToggle.setOnAction(e -> refles());
+
+            // Bu HBox'ta solda "Deadline" yazısı, ortada checkbox, sağda "Created At"
+            // yazısı var
+            HBox toggleContainer = new HBox(10, lblDeadline, toggleCheckBox, lblCreatedAt);
+
+            // İşlem butonları
+            Button addButton = new Button("Add Task");
+            Button updateButton = new Button("Update Task");
+            Button deleteButton = new Button("Delete Task");
+            Button markButton = new Button("Complete Task");
+
+            // Add Task: ayrı pencerede yeni görev ekleme
+            addButton.setOnAction(e -> openAddTaskWindow(taskList));
+
+            // Update Task: ayrı pencerede seçili görevi düzenleme
+            updateButton.setOnAction(e -> {
+                Task selectedTask = taskList.getSelectionModel().getSelectedItem();
+                if (selectedTask != null) {
+                    openUpdateTaskWindow(selectedTask, taskList);
+                }
+            });
+
+            // Delete Task: seçili görevi sil
+            deleteButton.setOnAction(e -> {
+                Task selectedTask = taskList.getSelectionModel().getSelectedItem();
+                if (selectedTask != null) {
+                    deleteTask(selectedTask);
+                    refles();
+                }
+            });
+
+            markButton.setOnAction(e -> {
+                Task selectedTask = taskList.getSelectionModel().getSelectedItem();
+                if (selectedTask != null) {
+                    markTaskAsCompleted(selectedTask);
+                    refles();
+                }
+            });
+
+            // Ana layout
+            // Butonları layout'a ekle
+            VBox layout = new VBox(10,
+                    filterTagInput,
+                    toggleContainer,
+                    showCompletedToggle, // Yeni toggle
+                    taskList,
+                    addButton, updateButton, deleteButton, markButton);
+            primaryStage.setScene(new Scene(layout, 400, 600));
+            primaryStage.setTitle("To-Do List with Tags");
+            primaryStage.show();
+
+            // Başlangıçta görevleri çek
             refles();
-        });
 
-        showCompletedToggle.setOnAction(e -> refles());
-
-
-
-        // Bu HBox'ta solda "Deadline" yazısı, ortada checkbox, sağda "Created At" yazısı var
-        HBox toggleContainer = new HBox(10, lblDeadline, toggleCheckBox, lblCreatedAt);
-
-        // İşlem butonları
-        Button addButton = new Button("Add Task");
-        Button updateButton = new Button("Update Task");
-        Button deleteButton = new Button("Delete Task");
-        Button markButton = new Button("Complete Task");
-
-        // Add Task: ayrı pencerede yeni görev ekleme
-        addButton.setOnAction(e -> openAddTaskWindow(taskList));
-
-        // Update Task: ayrı pencerede seçili görevi düzenleme
-        updateButton.setOnAction(e -> {
-            Task selectedTask = taskList.getSelectionModel().getSelectedItem();
-            if (selectedTask != null) {
-                openUpdateTaskWindow(selectedTask, taskList);
-            }
-        });
-
-        // Delete Task: seçili görevi sil
-        deleteButton.setOnAction(e -> {
-            Task selectedTask = taskList.getSelectionModel().getSelectedItem();
-            if (selectedTask != null) {
-                deleteTask(selectedTask);
-                refles();
-            }
-        });
-
-        markButton.setOnAction(e -> {
-            Task selectedTask = taskList.getSelectionModel().getSelectedItem();
-            if (selectedTask != null) {
-                markTaskAsCompleted(selectedTask);
-                refles();
-            }
-        });
-
-        // Ana layout
-        // Butonları layout'a ekle
-        VBox layout = new VBox(10,
-            filterTagInput,
-            toggleContainer,
-            showCompletedToggle, // Yeni toggle
-            taskList,
-            addButton, updateButton, deleteButton, markButton
-        );
-        primaryStage.setScene(new Scene(layout, 400, 600));
-        primaryStage.setTitle("To-Do List with Tags");
-        primaryStage.show();
-
-        // Başlangıçta görevleri çek
-        refles();
-
-        // Otomatik yenileme (1 saniyede bir)
-        startTimer();
+            // Otomatik yenileme (1 saniyede bir)
+            startTimer();
+        }
     }
 
     /**
-    * 1 saniyede bir çalışan Timer fonksiyonu.
-    * Filtre ve sıralama durumuna göre listeyi yeniler.
-    */
+     * 1 saniyede bir çalışan Timer fonksiyonu.
+     * Filtre ve sıralama durumuna göre listeyi yeniler.
+     */
     public void startTimer() {
         Timeline timeline = new Timeline(new KeyFrame(Duration.seconds(1), event -> {
             refles();
@@ -148,31 +164,32 @@ public class MainView extends Application {
     }
 
     /**
-    * Filtre ve sıralama durumunu göz önünde bulundurarak listeyi yenileyen metod.
-    */
+     * Filtre ve sıralama durumunu göz önünde bulundurarak listeyi yenileyen metod.
+     */
     public void refles() {
         selectedTaskBeforeRefresh = taskList.getSelectionModel().getSelectedItem();
 
         String filterTag = filterTagInput.getText();
-        
+
         RestTemplate restTemplate = new RestTemplate();
         Task[] tasks = restTemplate.getForObject(API_URL, Task[].class);
         if (tasks.length != 0) {
             List<Task> coplate_filteredTasks = Arrays.stream(tasks)
-                        .filter(task -> showCompletedToggle.isSelected() == task.isCompleted())
-                        .collect(Collectors.toList());
-    
+                    .filter(task -> showCompletedToggle.isSelected() == task.isCompleted())
+                    .collect(Collectors.toList());
+
             if (!filterTag.isEmpty()) {
                 // Filtre uygulanacak
                 if (coplate_filteredTasks != null) {
                     List<Task> filteredTasks = coplate_filteredTasks.stream()
-                        .filter(task -> task.getTags() != null && task.getTags().contains(filterTag) && (showCompletedToggle.isSelected() == task.isCompleted()))
-                        .collect(Collectors.toList());
-                    // Deadline'a göre bir ilk sıralama (isterseniz direk sorting parametresine göre de ayarlayabilirsiniz)
+                            .filter(task -> task.getTags() != null && task.getTags().contains(filterTag)
+                                    && (showCompletedToggle.isSelected() == task.isCompleted()))
+                            .collect(Collectors.toList());
+                    // Deadline'a göre bir ilk sıralama (isterseniz direk sorting parametresine göre
+                    // de ayarlayabilirsiniz)
                     filteredTasks.sort(Comparator.comparing(
-                        Task::getDeadline,
-                        Comparator.nullsLast(Comparator.naturalOrder())
-                    ));
+                            Task::getDeadline,
+                            Comparator.nullsLast(Comparator.naturalOrder())));
                     taskList.getItems().setAll(filteredTasks);
                 }
             } else {
@@ -189,31 +206,30 @@ public class MainView extends Application {
 
         if (selectedTaskBeforeRefresh != null) {
             taskList.getItems().stream()
-                .filter(task -> task.getId().equals(selectedTaskBeforeRefresh.getId()))
-                .findFirst()
-                .ifPresent(task -> {
-                    taskList.getSelectionModel().select(task);
-                    taskList.scrollTo(task);
-                });
+                    .filter(task -> task.getId().equals(selectedTaskBeforeRefresh.getId()))
+                    .findFirst()
+                    .ifPresent(task -> {
+                        taskList.getSelectionModel().select(task);
+                        taskList.scrollTo(task);
+                    });
         }
 
         taskList.setCellFactory(param -> new ListCell<>() {
             @Override
             protected void updateItem(Task task, boolean empty) {
                 super.updateItem(task, empty);
-                if(empty || task == null) {
+                if (empty || task == null) {
                     setText(null);
                     setStyle("");
                 } else {
-                    String deadlineStr = task.getDeadline() != null ? 
-                        task.getDeadline().toString() : "Belirtilmemiş";
-                        setText(task.getDescription() + " - Deadline: " + deadlineStr);
+                    String deadlineStr = task.getDeadline() != null ? task.getDeadline().toString() : "Belirtilmemiş";
+                    setText(task.getDescription() + " - Deadline: " + deadlineStr);
 
                     String color = determineTaskColor(task);
-                        setStyle("-fx-background-color: " + color + ";" +
-                        "-fx-border-color: derive(" + color + ", -30%);" +
-                        "-fx-text-fill: " + getContrastColor(color) + ";" +
-                        "-fx-padding: 10;");
+                    setStyle("-fx-background-color: " + color + ";" +
+                            "-fx-border-color: derive(" + color + ", -30%);" +
+                            "-fx-text-fill: " + getContrastColor(color) + ";" +
+                            "-fx-padding: 10;");
                     if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)) {
                         taskList.getSelectionModel().select(task);
                     }
@@ -268,7 +284,8 @@ public class MainView extends Application {
         addStage.show();
     }
 
-    // "Update Task" için ayrı pencere (güncelleme formu: açıklama, etiket, deadline)
+    // "Update Task" için ayrı pencere (güncelleme formu: açıklama, etiket,
+    // deadline)
     private void openUpdateTaskWindow(Task task, ListView<Task> taskList) {
         Stage updateStage = new Stage();
         updateStage.setTitle("Update Task");
@@ -312,7 +329,8 @@ public class MainView extends Application {
             }
         });
 
-        VBox updateLayout = new VBox(10, updateTaskInput, updateTagInput, updateMonthInput, updateDayInput, updateYearInput, saveUpdateButton);
+        VBox updateLayout = new VBox(10, updateTaskInput, updateTagInput, updateMonthInput, updateDayInput,
+                updateYearInput, saveUpdateButton);
         updateStage.setScene(new Scene(updateLayout, 300, 250));
         updateStage.show();
     }
@@ -320,7 +338,8 @@ public class MainView extends Application {
     // Görevi full update yapan metod (description, tags, deadline)
     private void updateTaskFull(Task task, String description, String tags, LocalDate deadline) {
         RestTemplate restTemplate = new RestTemplate();
-        String url = API_URL + "/" + task.getId() + "/updateFull?description=" + description + "&tags=" + tags + "&deadline=" + deadline.toString();
+        String url = API_URL + "/" + task.getId() + "/updateFull?description=" + description + "&tags=" + tags
+                + "&deadline=" + deadline.toString();
         restTemplate.put(url, null);
     }
 
@@ -330,8 +349,6 @@ public class MainView extends Application {
         String url = API_URL + "?description=" + description + "&tags=" + tags + "&deadline=" + deadline.toString();
         restTemplate.postForObject(url, null, Task.class);
     }
-
-    
 
     private String getContrastColor(String hexColor) {
         hexColor = hexColor.replace("#", "");
@@ -344,7 +361,7 @@ public class MainView extends Application {
 
     // Bir görevi veritabanından siler
     private void deleteTask(Task task) {
-        if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)){
+        if (selectedTaskBeforeRefresh != null && task.equals(selectedTaskBeforeRefresh)) {
             selectedTaskBeforeRefresh = null;
         }
         RestTemplate restTemplate = new RestTemplate();
@@ -356,15 +373,13 @@ public class MainView extends Application {
         String url = API_URL + "/" + task.getId() + "/complete";
         restTemplate.put(url, null);
     }
-    
 
     // Frontend sıralama: Deadline'a göre
     private void sortTasksByDeadline(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
-            Task::getDeadline,
-            Comparator.nullsLast(Comparator.naturalOrder())
-        ));
+                Task::getDeadline,
+                Comparator.nullsLast(Comparator.naturalOrder())));
         taskList.getItems().setAll(currentTasks);
     }
 
@@ -372,9 +387,8 @@ public class MainView extends Application {
     private void sortTasksByCreatedAt(ListView<Task> taskList) {
         List<Task> currentTasks = new ArrayList<>(taskList.getItems());
         currentTasks.sort(Comparator.comparing(
-            Task::getCreatedAt,
-            Comparator.nullsLast(Comparator.naturalOrder())
-        ));
+                Task::getCreatedAt,
+                Comparator.nullsLast(Comparator.naturalOrder())));
         taskList.getItems().setAll(currentTasks);
     }
 
