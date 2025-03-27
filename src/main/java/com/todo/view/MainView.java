@@ -12,6 +12,8 @@ import javafx.scene.layout.VBox;
 import javafx.stage.Stage;
 import javafx.util.Duration;
 import org.springframework.web.client.RestTemplate;
+import org.mindrot.jbcrypt.BCrypt;
+
 
 import java.time.LocalDate;
 import java.time.temporal.ChronoUnit;
@@ -61,11 +63,11 @@ public class MainView extends Application {
         String enteredPassword = passwordField.getText();
 
         // Predefined username and password (for demonstration)
-        String correctUsername = "admin";
-        String correctPassword = "password";
+        String correctHashedUsername = BCrypt.hashpw("admin", BCrypt.gensalt());
+        String correctHashedPassword = BCrypt.hashpw("password", BCrypt.gensalt());
 
         // Check if entered credentials are correct
-        if (enteredUsername.equals(correctUsername) && enteredPassword.equals(correctPassword)) {
+        if (BCrypt.checkpw(enteredUsername,correctHashedUsername) && BCrypt.checkpw(enteredPassword,correctHashedPassword)) {
             return true;
         } else {
             return false;
