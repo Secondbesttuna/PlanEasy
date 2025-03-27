@@ -12,21 +12,33 @@ PlanEasy is a task management application that allows users to efficiently organ
 ✅ Cross-platform support (Android, and potential web version).
 
 🛠️ Technology Stack
-Frontend: Java (Android)
-Backend: Local SQLite / Firebase (for data storage)
+Frontend: Java (javaFX)
+Backend: H2/spring-boot
 Version Control: GitHub
-UI Design: Figma / Adobe XD
 
-//This part may change but at the time this was what i had in my mind 
+
+Build:
+mvn clean install
+
+Run:
+for server: mvn spring-boot:run
+for GUI: mvn javafx:run
+
 /PlanEasy
- ├── /app
- │   ├── /ui      # User Interface components
- │   ├── /data    # Database and storage management
- │   ├── /logic   # Core business logic and services
- │   ├── /tests   # Unit and integration tests
- │   └── MainActivity.java
- ├── /docs        # Project documentation (Design Doc, QA Plan, etc.)
+ ├── /src
+ |   ├── /docxs
+ │   ├── /main/java/com/todo
+ │                     ├── /controler
+ │                         └── TaskControler.java
+ │                     ├── /model
+ │                         └── Task.java
+ │                     ├── /repository
+ │                         └── TaskRepository.java
+ │                     ├── /service
+ │                         └── TaskService.java
+ │                     ├── /view
+ │                         └── MainView.java
+ │                     └── TodoListApplication.java
  ├── README.md
- ├── .gitignore
- ├── build.gradle
- └── LICENSE
+ └── pom.xml
+
