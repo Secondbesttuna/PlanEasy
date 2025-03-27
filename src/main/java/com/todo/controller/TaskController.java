@@ -1,6 +1,8 @@
 package com.todo.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.SerializationFeature;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import com.todo.model.Task;
 import com.todo.service.TaskService;
 import org.slf4j.Logger;
@@ -32,6 +34,10 @@ public class TaskController {
     private static final Logger logger = LoggerFactory.getLogger(TaskController.class);
     private final TaskService taskService;
     private final ObjectMapper objectMapper = new ObjectMapper();
+    {
+        objectMapper.registerModule(new JavaTimeModule());
+        objectMapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+    }
 
     public TaskController(TaskService taskService) {
         this.taskService = taskService;
@@ -106,24 +112,25 @@ public class TaskController {
         return html.toString();
     }
 
-    // JSON dışarı aktarma
+
+
     @GetMapping("/export")
     public ResponseEntity<ByteArrayResource> exportTasks() {
         try {
-            // Tüm görevleri al
             List<Task> tasks = taskService.getAllTasks();
-            // Görev listesini JSON string'e çevir
             ObjectMapper mapper = new ObjectMapper();
+            // JSR-310 desteğini ekleyin
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS); // ISO-8601 formatı için
             String json = mapper.writeValueAsString(tasks);
-            // JSON string'i bayt dizisine çevir
             ByteArrayResource resource = new ByteArrayResource(json.getBytes(StandardCharsets.UTF_8));
-
             return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment;filename=tasks.json")
                 .contentType(MediaType.APPLICATION_JSON)
                 .contentLength(resource.contentLength())
                 .body(resource);
         } catch (Exception e) {
+            logger.error("Export hatası: ", e);
             return ResponseEntity.status(500).build();
         }
     }
@@ -134,6 +141,8 @@ public class TaskController {
             List<Task> tasks = taskService.getAllTasks();
             ObjectMapper mapper = new ObjectMapper();
             // tasks.json dosyasına yaz
+            mapper.registerModule(new JavaTimeModule());
+            mapper.disable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
             mapper.writeValue(new File("tasks.json"), tasks);
             return ResponseEntity.ok("Görevler tasks.json dosyasına yazıldı.");
         } catch (Exception e) {

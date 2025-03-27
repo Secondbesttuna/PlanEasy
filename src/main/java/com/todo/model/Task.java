@@ -12,7 +12,7 @@ public class Task {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     private String description;
-    private boolean completed;
+    private Boolean completed;
     private LocalDateTime createdAt;
 
     @ElementCollection

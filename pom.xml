@@ -72,6 +72,13 @@
         <version>0.4</version>
     </dependency>
 
+    <!-- Maven için -->
+<dependency>
+    <groupId>com.fasterxml.jackson.datatype</groupId>
+    <artifactId>jackson-datatype-jsr310</artifactId>
+    <version>2.13.4</version> <!-- Uygun versiyonu kullanın -->
+</dependency>
+
     </dependencies>
 
     <build>
